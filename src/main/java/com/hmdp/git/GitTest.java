@@ -9,5 +9,6 @@ public class GitTest {
         System.out.println("Hello github! I am change! PULL!!! SSH");
         System.out.println("Hello github! I am change! update");
         System.out.println("Hello github! I am change! update Gttt");
+        System.out.println("Hello github! I am change! update Gitee");
     }
 }
