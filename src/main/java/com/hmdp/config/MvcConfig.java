@@ -19,10 +19,10 @@ public class MvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         //拦截器是有先后顺序的，此时就要设置拦截器优先级了，默认order = 0，数值越小优先级越高
         //token刷新拦截器
-        registry.addInterceptor(new RefreshTokenInterceptor()).addPathPatterns("/**").order(0);
+        registry.addInterceptor(new RefreshTokenInterceptor(stringRedisTemplate)).addPathPatterns("/**").order(0);
 
         //登录拦截器
-        registry.addInterceptor(new LoginInterceptor(stringRedisTemplate))
+        registry.addInterceptor(new LoginInterceptor())
                 .excludePathPatterns(
                         "/user/code",
                         "/user/login",
