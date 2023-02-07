@@ -37,9 +37,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
         Map<Object, Object> userMap = stringRedisTemplate.opsForHash().entries(key);
         // 如果map中是空
         if(userMap.isEmpty()){
-            // 401 未授权
-            response.setStatus(401);
-            return false;
+            return true;
         }
         // TODO 将查询到的Hash数据转为UserDTO对象
         UserDTO userDTO = BeanUtil.fillBeanWithMap(userMap, new UserDTO(), false);

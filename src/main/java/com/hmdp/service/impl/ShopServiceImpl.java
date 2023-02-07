@@ -1,10 +1,23 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONUtil;
+import com.hmdp.dto.Result;
 import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.RedisConstants;
+import io.netty.util.internal.StringUtil;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.annotation.Resource;
+import java.util.concurrent.TimeUnit;
+
+import static com.hmdp.utils.RedisConstants.CACHE_NULL_TTL;
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_TTL;
 
 /**
  * <p>
@@ -17,4 +30,49 @@ import org.springframework.stereotype.Service;
 @Service
 public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IShopService {
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Override
+    public Result queryById(Long id) {
+        String key = RedisConstants.CACHE_SHOP_KEY + id;
+        // 1. 从redis中查询商铺缓存
+        String shopJson = stringRedisTemplate.opsForValue().get(key);
+        // 2. 判断是否存在
+        if (StrUtil.isNotBlank(shopJson)) {
+            // 3. redis中存在，直接返回
+            Shop shop = JSONUtil.toBean(shopJson,Shop.class);
+            return Result.ok(shop);
+        }
+        //命中的是否是空值
+        if(shopJson != null){
+            //返回一个错误信息
+            return Result.fail("店铺信息不存在");
+        }
+        // 4. redis中不存在，根据id查询数据库
+        Shop shop = getById(id);
+        // 5. 数据库也不存在，返回错误
+        if (shop == null) {
+            stringRedisTemplate.opsForValue().set(key,"",CACHE_NULL_TTL,TimeUnit.MINUTES);
+            return Result.fail("店铺不存在");
+        }
+        // 6. 存在写入redis
+        stringRedisTemplate.opsForValue().set(key,JSONUtil.toJsonStr(shop), CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        // 7. 返回
+        return Result.ok(shop);
+    }
+
+    @Override
+    @Transactional // 通过事务保证原子性
+    public Result update(Shop shop) {
+        // 更新数据库，再删缓存
+        updateById(shop);
+        Long id = shop.getId();
+        if (id == null) {
+            return Result.fail("店铺id不能为空");
+        }
+        String key = RedisConstants.CACHE_SHOP_KEY + id;
+        stringRedisTemplate.delete(key);
+        return Result.ok();
+    }
 }
